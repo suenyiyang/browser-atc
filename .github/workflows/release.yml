@@ -54,10 +54,10 @@ jobs:
             version "VERSION_PLACEHOLDER"
             sha256 "SHA256_PLACEHOLDER"
 
-            url "https://github.com/suenyiyang/browser-air-traffic-controller/releases/download/v#{version}/BrowserATC.app.zip"
+            url "https://github.com/suenyiyang/browser-atc/releases/download/v#{version}/BrowserATC.app.zip"
             name "Browser Air Traffic Controller"
             desc "Route URLs to different browsers and profiles based on regex rules"
-            homepage "https://github.com/suenyiyang/browser-air-traffic-controller"
+            homepage "https://github.com/suenyiyang/browser-atc"
 
             depends_on macos: ">= :sonoma"
 
