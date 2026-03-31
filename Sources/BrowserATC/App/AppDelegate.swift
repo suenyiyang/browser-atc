@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         didHandleURLs = true
+        closeMainWindow()
         let state = AppState.shared
         var descriptions: [String] = []
 
@@ -54,6 +55,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
             window.makeKeyAndOrderFront(nil)
             return
+        }
+    }
+
+    private func closeMainWindow() {
+        for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
+            window.close()
         }
     }
 }
