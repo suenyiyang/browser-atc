@@ -7,8 +7,13 @@ final class AppState {
     static let shared = AppState()
 
     var rules: [Rule] = []
-    var profiles: [ChromeProfile] = []
+    var profiles: [BrowserProfile] = []
+    var defaultBrowserID: String = "chrome"
     var defaultProfileDirectory: String = "Default"
+
+    var installedBrowsers: [BrowserDefinition] {
+        BrowserDefinition.builtins.filter { BrowserDefinition.isInstalled($0) }
+    }
 
     private init() {
         load()
@@ -18,15 +23,20 @@ final class AppState {
     func load() {
         let stored = RuleStorage.load()
         rules = stored.rules
+        defaultBrowserID = stored.defaultBrowserID
         defaultProfileDirectory = stored.defaultProfile
     }
 
     func save() {
-        RuleStorage.save(rules: rules, defaultProfile: defaultProfileDirectory)
+        RuleStorage.save(rules: rules, defaultBrowserID: defaultBrowserID, defaultProfile: defaultProfileDirectory)
     }
 
     func refreshProfiles() {
-        profiles = ChromeProfileDiscovery.discoverProfiles()
+        profiles = BrowserProfileDiscovery.discoverAllProfiles()
+    }
+
+    func profiles(for browserID: String) -> [BrowserProfile] {
+        profiles.filter { $0.browserID == browserID }
     }
 
     func addRule(_ rule: Rule) {

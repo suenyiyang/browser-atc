@@ -10,7 +10,7 @@ struct ContentView: View {
             HStack {
                 Spacer()
                 HStack(spacing: 8) {
-                    Text("\(state.profiles.count) profiles detected")
+                    Text("\(state.installedBrowsers.count) browsers, \(state.profiles.count) profiles")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -19,7 +19,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .help("Refresh Chrome profiles")
+                    .help("Refresh browser profiles")
 
                     Button {
                         showingSettings = true
@@ -47,7 +47,7 @@ struct ContentView: View {
                     ContentUnavailableView(
                         "No Rules",
                         systemImage: "airplane.circle",
-                        description: Text("Add rules to route URLs to specific Chrome profiles.")
+                        description: Text("Add rules to route URLs to specific browsers and profiles.")
                     )
                 } else {
                     RuleListView(state: state)
@@ -57,13 +57,14 @@ struct ContentView: View {
         .navigationTitle("Browser ATC")
         .sheet(isPresented: $showingAddSheet) {
             RuleEditorView(
-                profiles: state.profiles,
+                installedBrowsers: state.installedBrowsers,
+                allProfiles: state.profiles,
                 onSave: { rule in state.addRule(rule) }
             )
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(state: state)
         }
-        .frame(minWidth: 500, minHeight: 300)
+        .frame(minWidth: 360, idealWidth: 420, minHeight: 300, idealHeight: 400)
     }
 }

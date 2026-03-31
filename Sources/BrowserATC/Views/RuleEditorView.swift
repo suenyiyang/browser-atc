@@ -4,24 +4,47 @@ struct RuleEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var pattern: String
+    @State private var browserID: String
     @State private var profileDirectory: String
     @State private var isEnabled: Bool
 
     private let existingRule: Rule?
-    private let profiles: [ChromeProfile]
+    private let installedBrowsers: [BrowserDefinition]
+    private let allProfiles: [BrowserProfile]
     private let onSave: (Rule) -> Void
 
-    init(rule: Rule? = nil, profiles: [ChromeProfile], onSave: @escaping (Rule) -> Void) {
+    init(rule: Rule? = nil, installedBrowsers: [BrowserDefinition],
+         allProfiles: [BrowserProfile], onSave: @escaping (Rule) -> Void) {
         self.existingRule = rule
-        self.profiles = profiles
+        self.installedBrowsers = installedBrowsers
+        self.allProfiles = allProfiles
         self.onSave = onSave
+
+        let initialBrowserID = rule?.browserID ?? installedBrowsers.first?.id ?? "chrome"
+        let browserProfiles = allProfiles.filter { $0.browserID == initialBrowserID }
+
         _pattern = State(initialValue: rule?.pattern ?? "")
-        _profileDirectory = State(initialValue: rule?.profileDirectory ?? profiles.first?.directory ?? "Default")
+        _browserID = State(initialValue: initialBrowserID)
+        _profileDirectory = State(
+            initialValue: rule?.profileDirectory ?? browserProfiles.first?.directory ?? ""
+        )
         _isEnabled = State(initialValue: rule?.isEnabled ?? true)
     }
 
     private var isValidPattern: Bool {
         !pattern.isEmpty && (try? Regex(pattern)) != nil
+    }
+
+    private var selectedBrowser: BrowserDefinition? {
+        installedBrowsers.first(where: { $0.id == browserID })
+    }
+
+    private var browserProfiles: [BrowserProfile] {
+        allProfiles.filter { $0.browserID == browserID }
+    }
+
+    private var hasProfiles: Bool {
+        selectedBrowser?.browserType != .safari
     }
 
     var body: some View {
@@ -46,15 +69,33 @@ struct RuleEditorView: View {
                     }
                 }
 
-                Section("Chrome Profile") {
-                    if profiles.isEmpty {
-                        Text("No Chrome profiles found. Make sure Chrome is installed.")
+                Section("Target Browser") {
+                    if installedBrowsers.isEmpty {
+                        Text("No browsers found.")
                             .foregroundStyle(.secondary)
                     } else {
-                        Picker("Profile", selection: $profileDirectory) {
-                            ForEach(profiles) { profile in
-                                Text(profile.displayName)
-                                    .tag(profile.directory)
+                        Picker("Browser", selection: $browserID) {
+                            ForEach(installedBrowsers) { browser in
+                                Text(browser.name)
+                                    .tag(browser.id)
+                            }
+                        }
+                        .onChange(of: browserID) { _, newValue in
+                            let profiles = allProfiles.filter { $0.browserID == newValue }
+                            profileDirectory = profiles.first?.directory ?? ""
+                        }
+
+                        if hasProfiles {
+                            if browserProfiles.isEmpty {
+                                Text("No profiles found for this browser.")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Picker("Profile", selection: $profileDirectory) {
+                                    ForEach(browserProfiles) { profile in
+                                        Text(profile.displayName)
+                                            .tag(profile.directory)
+                                    }
+                                }
                             }
                         }
                     }
@@ -76,6 +117,7 @@ struct RuleEditorView: View {
                     let rule = Rule(
                         id: existingRule?.id ?? UUID(),
                         pattern: pattern,
+                        browserID: browserID,
                         profileDirectory: profileDirectory,
                         isEnabled: isEnabled
                     )
@@ -87,6 +129,6 @@ struct RuleEditorView: View {
             }
             .padding()
         }
-        .frame(width: 450, height: 320)
+        .frame(width: 450, height: 380)
     }
 }

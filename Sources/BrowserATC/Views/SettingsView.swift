@@ -8,36 +8,77 @@ struct SettingsView: View {
     private var matchResult: String {
         guard !testURL.isEmpty, let url = URL(string: testURL) else { return "" }
         if let rule = URLMatcher.match(url: url, against: state.rules) {
+            let browserName = BrowserDefinition.builtins
+                .first(where: { $0.id == rule.browserID })?.name ?? rule.browserID
             let profileName = state.profiles
-                .first(where: { $0.directory == rule.profileDirectory })?.displayName
-                ?? rule.profileDirectory
-            return "Matches rule \"\(rule.pattern)\" → \(profileName)"
+                .first(where: { $0.browserID == rule.browserID && $0.directory == rule.profileDirectory })?
+                .displayName
+            if let profileName, !profileName.isEmpty, profileName != browserName {
+                return "Matches rule \"\(rule.pattern)\" \u{2192} \(browserName) / \(profileName)"
+            }
+            return "Matches rule \"\(rule.pattern)\" \u{2192} \(browserName)"
         } else {
-            let defaultName = state.profiles
-                .first(where: { $0.directory == state.defaultProfileDirectory })?.displayName
-                ?? state.defaultProfileDirectory
-            return "No rule matched → default profile: \(defaultName)"
+            let browserName = BrowserDefinition.builtins
+                .first(where: { $0.id == state.defaultBrowserID })?.name ?? state.defaultBrowserID
+            let profileName = state.profiles
+                .first(where: { $0.browserID == state.defaultBrowserID && $0.directory == state.defaultProfileDirectory })?
+                .displayName
+            if let profileName, !profileName.isEmpty, profileName != browserName {
+                return "No rule matched \u{2192} default: \(browserName) / \(profileName)"
+            }
+            return "No rule matched \u{2192} default: \(browserName)"
         }
+    }
+
+    private var defaultBrowserProfiles: [BrowserProfile] {
+        state.profiles(for: state.defaultBrowserID)
+    }
+
+    private var defaultBrowserHasProfiles: Bool {
+        BrowserDefinition.builtins
+            .first(where: { $0.id == state.defaultBrowserID })?.browserType != .safari
     }
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section("Default Profile") {
-                    if state.profiles.isEmpty {
-                        Text("No Chrome profiles found.")
+                Section("Default Browser") {
+                    if state.installedBrowsers.isEmpty {
+                        Text("No browsers found.")
                             .foregroundStyle(.secondary)
                     } else {
-                        Picker("Fallback profile for unmatched URLs", selection: Binding(
-                            get: { state.defaultProfileDirectory },
+                        Picker("Browser", selection: Binding(
+                            get: { state.defaultBrowserID },
                             set: {
-                                state.defaultProfileDirectory = $0
+                                state.defaultBrowserID = $0
+                                let profiles = state.profiles(for: $0)
+                                state.defaultProfileDirectory = profiles.first?.directory ?? ""
                                 state.save()
                             }
                         )) {
-                            ForEach(state.profiles) { profile in
-                                Text(profile.displayName)
-                                    .tag(profile.directory)
+                            ForEach(state.installedBrowsers) { browser in
+                                Text(browser.name)
+                                    .tag(browser.id)
+                            }
+                        }
+
+                        if defaultBrowserHasProfiles {
+                            if defaultBrowserProfiles.isEmpty {
+                                Text("No profiles found.")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Picker("Fallback profile for unmatched URLs", selection: Binding(
+                                    get: { state.defaultProfileDirectory },
+                                    set: {
+                                        state.defaultProfileDirectory = $0
+                                        state.save()
+                                    }
+                                )) {
+                                    ForEach(defaultBrowserProfiles) { profile in
+                                        Text(profile.displayName)
+                                            .tag(profile.directory)
+                                    }
+                                }
                             }
                         }
                     }
@@ -57,25 +98,27 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Chrome") {
-                    HStack {
-                        if ChromeProfileDiscovery.isChromeInstalled {
-                            Label("Chrome is installed", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        } else {
-                            Label("Chrome not found", systemImage: "xmark.circle.fill")
-                                .foregroundStyle(.red)
-                        }
+                Section("Browsers") {
+                    ForEach(BrowserDefinition.builtins) { browser in
+                        HStack {
+                            let installed = BrowserDefinition.isInstalled(browser)
+                            Label(browser.name, systemImage: installed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(installed ? .green : .secondary)
 
-                        Spacer()
+                            Spacer()
 
-                        Button("Refresh Profiles") {
-                            state.refreshProfiles()
+                            let count = state.profiles(for: browser.id).count
+                            if installed && browser.browserType != .safari {
+                                Text("\(count) profile(s)")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                            }
                         }
                     }
 
-                    Text("\(state.profiles.count) profile(s) detected")
-                        .foregroundStyle(.secondary)
+                    Button("Refresh Profiles") {
+                        state.refreshProfiles()
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -89,6 +132,6 @@ struct SettingsView: View {
             }
             .padding()
         }
-        .frame(minWidth: 350, idealWidth: 450, minHeight: 300, idealHeight: 380)
+        .frame(minWidth: 350, idealWidth: 450, minHeight: 380, idealHeight: 480)
     }
 }

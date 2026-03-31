@@ -21,7 +21,8 @@ struct RuleListView: View {
         .sheet(item: $editingRule) { rule in
             RuleEditorView(
                 rule: rule,
-                profiles: state.profiles,
+                installedBrowsers: state.installedBrowsers,
+                allProfiles: state.profiles,
                 onSave: { updated in state.updateRule(updated) }
             )
         }
@@ -31,11 +32,28 @@ struct RuleListView: View {
 private struct RuleRow: View {
     let rule: Rule
     let index: Int
-    let profiles: [ChromeProfile]
+    let profiles: [BrowserProfile]
 
-    private var profileName: String {
-        profiles.first(where: { $0.directory == rule.profileDirectory })?.displayName
-            ?? rule.profileDirectory
+    private var browserName: String {
+        BrowserDefinition.builtins
+            .first(where: { $0.id == rule.browserID })?.name ?? rule.browserID
+    }
+
+    private var profileName: String? {
+        let profile = profiles.first(where: {
+            $0.browserID == rule.browserID && $0.directory == rule.profileDirectory
+        })
+        guard let name = profile?.displayName, !name.isEmpty, name != browserName else {
+            return nil
+        }
+        return name
+    }
+
+    private var targetDescription: String {
+        if let profileName {
+            return "\(browserName) — \(profileName)"
+        }
+        return browserName
     }
 
     var body: some View {
@@ -48,7 +66,7 @@ private struct RuleRow: View {
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(rule.isValidPattern ? Color.primary : Color.red)
 
-                Text(profileName)
+                Text(targetDescription)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
