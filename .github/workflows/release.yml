@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and bundle
+        run: make bundle
+
+      - name: Zip app bundle
+        run: |
+          cd build
+          zip -r BrowserATC.app.zip BrowserATC.app
+
+      - name: Compute SHA256
+        id: sha
+        run: echo "sha256=$(shasum -a 256 build/BrowserATC.app.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/BrowserATC.app.zip
+          generate_release_notes: true
+
+      - name: Update Homebrew Cask
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+
+          git clone https://x-access-token:${TAP_TOKEN}@github.com/suenyiyang/homebrew-browser-atc.git tap
+          mkdir -p tap/Casks
+
+          cat > tap/Casks/browser-atc.rb << 'CASK_EOF'
+          cask "browser-atc" do
+            version "VERSION_PLACEHOLDER"
+            sha256 "SHA256_PLACEHOLDER"
+
+            url "https://github.com/suenyiyang/browser-air-traffic-controller/releases/download/v#{version}/BrowserATC.app.zip"
+            name "Browser Air Traffic Controller"
+            desc "Route URLs to different browsers and profiles based on regex rules"
+            homepage "https://github.com/suenyiyang/browser-air-traffic-controller"
+
+            depends_on macos: ">= :sonoma"
+
+            app "BrowserATC.app"
+          end
+          CASK_EOF
+
+          sed -i '' "s/VERSION_PLACEHOLDER/${VERSION}/" tap/Casks/browser-atc.rb
+          sed -i '' "s/SHA256_PLACEHOLDER/${SHA256}/" tap/Casks/browser-atc.rb
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/browser-atc.rb
+          git commit -m "Update browser-atc to ${VERSION}"
+          git push

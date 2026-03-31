@@ -11,12 +11,19 @@ A macOS app that routes URLs to different Google Chrome profiles based on regex 
 ## Installation
 
 ```bash
+brew install --cask suenyiyang/browser-atc/browser-atc
+xattr -dr com.apple.quarantine "$(brew --caskroom)/browser-atc"/*/*.app
+```
+
+After installation, open the app, then go to **System Settings → Desktop & Dock → Default web browser** and select **Browser Air Traffic Controller**.
+
+### Build from source
+
+```bash
 make install
 ```
 
 This builds the app and copies it to `~/Applications/BrowserATC.app`.
-
-After installation, open the app once, then go to **System Settings → Desktop & Dock → Default web browser** and select **Browser Air Traffic Controller**.
 
 ## Usage
 
