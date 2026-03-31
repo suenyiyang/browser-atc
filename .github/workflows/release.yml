@@ -32,14 +32,21 @@ jobs:
           files: build/BrowserATC.app.zip
           generate_release_notes: true
 
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: suenyiyang
+          repositories: homebrew-browser-atc
+
       - name: Update Homebrew Cask
-        env:
-          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           SHA256="${{ steps.sha.outputs.sha256 }}"
 
-          git clone https://x-access-token:${TAP_TOKEN}@github.com/suenyiyang/homebrew-browser-atc.git tap
+          git clone https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/suenyiyang/homebrew-browser-atc.git tap
           mkdir -p tap/Casks
 
           cat > tap/Casks/browser-atc.rb << 'CASK_EOF'
