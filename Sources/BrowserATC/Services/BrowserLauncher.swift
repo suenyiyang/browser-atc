@@ -35,6 +35,7 @@ enum BrowserLauncher {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()
+        activateBrowser(browser)
     }
 
     @MainActor
@@ -43,10 +44,12 @@ enum BrowserLauncher {
             NSWorkspace.shared.open(url)
             return
         }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
         NSWorkspace.shared.open(
             [url],
             withApplicationAt: appURL,
-            configuration: NSWorkspace.OpenConfiguration()
+            configuration: configuration
         )
     }
 
@@ -68,6 +71,11 @@ enum BrowserLauncher {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()
+        activateBrowser(browser)
+    }
+
+    private static func activateBrowser(_ browser: BrowserDefinition) {
+        NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID).first?.activate()
     }
 
     private static func binaryName(for browser: BrowserDefinition) -> String {
