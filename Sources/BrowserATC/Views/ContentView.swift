@@ -6,7 +6,42 @@ struct ContentView: View {
     @State private var showingSettings = false
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                HStack(spacing: 8) {
+                    Text("\(state.profiles.count) profiles detected")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        state.refreshProfiles()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .help("Refresh Chrome profiles")
+
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .help("Settings")
+
+                    Button {
+                        showingAddSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .help("Add rule")
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
+
             Group {
                 if state.rules.isEmpty {
                     ContentUnavailableView(
@@ -18,42 +53,8 @@ struct ContentView: View {
                     RuleListView(state: state)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    HStack(spacing: 12) {
-                        Text("\(state.profiles.count) profiles detected")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Button {
-                            state.refreshProfiles()
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .help("Refresh Chrome profiles")
-                    }
-                }
-
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .help("Settings")
-                }
-
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        showingAddSheet = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .help("Add rule")
-                }
-            }
-            .navigationTitle("Browser ATC")
         }
+        .navigationTitle("Browser ATC")
         .sheet(isPresented: $showingAddSheet) {
             RuleEditorView(
                 profiles: state.profiles,

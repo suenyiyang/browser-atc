@@ -89,6 +89,6 @@ struct SettingsView: View {
             }
             .padding()
         }
-        .frame(width: 500, height: 380)
+        .frame(minWidth: 350, idealWidth: 450, minHeight: 300, idealHeight: 380)
     }
 }
