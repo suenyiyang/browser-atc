@@ -15,6 +15,8 @@ enum BrowserLauncher {
             openWithWorkspace(url: url, browser: browser)
         case .firefox:
             openFirefox(url: url, browser: browser, profileDirectory: profileDirectory)
+        case .adspower:
+            openAdsPower(url: url, browser: browser, profileDirectory: profileDirectory)
         }
     }
 
@@ -72,6 +74,47 @@ enum BrowserLauncher {
         process.standardError = FileHandle.nullDevice
         try? process.run()
         activateBrowser(browser)
+    }
+
+    @MainActor
+    private static func openAdsPower(url: URL, browser: BrowserDefinition, profileDirectory: String) {
+        let apiPort = readAdsPowerAPIPort() ?? "50325"
+        let encodedURL = url.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? url.absoluteString
+        let launchArgs = "[\"\(encodedURL)\"]"
+        let encodedArgs = launchArgs.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? launchArgs
+
+        var apiURL: String
+        if profileDirectory.isEmpty {
+            apiURL = "http://local.adspower.net:\(apiPort)/api/v1/browser/start?open_tabs=0&launch_args=\(encodedArgs)"
+        } else {
+            apiURL = "http://local.adspower.net:\(apiPort)/api/v1/browser/start?user_id=\(profileDirectory)&open_tabs=0&launch_args=\(encodedArgs)"
+        }
+
+        guard let requestURL = URL(string: apiURL) else {
+            openWithWorkspace(url: url, browser: browser)
+            return
+        }
+
+        var request = URLRequest(url: requestURL)
+        request.timeoutInterval = 10
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            if error != nil {
+                DispatchQueue.main.async {
+                    openWithWorkspace(url: url, browser: browser)
+                }
+            }
+        }.resume()
+    }
+
+    private static func readAdsPowerAPIPort() -> String? {
+        let path = NSHomeDirectory() + "/Library/Application Support/adspower_global/cwd_global/source/local_api"
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let colonIndex = trimmed.lastIndex(of: ":") {
+            return String(trimmed[trimmed.index(after: colonIndex)...])
+        }
+        return nil
     }
 
     private static func activateBrowser(_ browser: BrowserDefinition) {

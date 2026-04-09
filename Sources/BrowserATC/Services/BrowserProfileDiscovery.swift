@@ -16,6 +16,8 @@ enum BrowserProfileDiscovery {
             return [BrowserProfile(browserID: browser.id, directory: "", displayName: browser.name)]
         case .firefox:
             return discoverFirefoxProfiles(browser: browser)
+        case .adspower:
+            return discoverAdsPowerProfiles(browser: browser)
         }
     }
 
@@ -70,5 +72,53 @@ enum BrowserProfileDiscovery {
         }
 
         return profiles
+    }
+
+    private static func discoverAdsPowerProfiles(browser: BrowserDefinition) -> [BrowserProfile] {
+        let apiPort = readAdsPowerAPIPort() ?? "50325"
+        let urlString = "http://local.adspower.net:\(apiPort)/api/v1/user/list?page_size=100"
+        guard let url = URL(string: urlString) else { return [] }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 3
+
+        guard
+            let data = sendSynchronousRequest(request),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let code = json["code"] as? Int, code == 0,
+            let dataObj = json["data"] as? [String: Any],
+            let list = dataObj["list"] as? [[String: Any]]
+        else { return [] }
+
+        return list.compactMap { profile in
+            guard let userID = profile["user_id"] as? String else { return nil }
+            let name = profile["name"] as? String
+            let serialNumber = profile["serial_number"] as? Int
+            let displayName = name ?? "Profile \(serialNumber ?? 0)"
+            return BrowserProfile(browserID: browser.id, directory: userID, displayName: displayName)
+        }
+        .sorted { $0.displayName.localizedCompare($1.displayName) == .orderedAscending }
+    }
+
+    private static func sendSynchronousRequest(_ request: URLRequest) -> Data? {
+        let semaphore = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var responseData: Data?
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            responseData = data
+            semaphore.signal()
+        }.resume()
+        _ = semaphore.wait(timeout: .now() + 5)
+        return responseData
+    }
+
+    private static func readAdsPowerAPIPort() -> String? {
+        let path = NSHomeDirectory() + "/Library/Application Support/adspower_global/cwd_global/source/local_api"
+        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The file contains the API address like "127.0.0.1:50325"
+        if let colonIndex = trimmed.lastIndex(of: ":") {
+            return String(trimmed[trimmed.index(after: colonIndex)...])
+        }
+        return nil
     }
 }
