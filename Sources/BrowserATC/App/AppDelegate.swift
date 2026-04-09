@@ -12,6 +12,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            openMainWindow()
+        }
+        return true
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         didHandleURLs = true
         closeMainWindow()
@@ -50,16 +57,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func openMainWindow() {
-        NSApp.activate()
-        // Bring existing main window to front, or the Window scene will create one
-        for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
+        NSApp.activate(ignoringOtherApps: true)
+        // Bring existing main window to front
+        for window in NSApp.windows where window.canBecomeMain {
             window.makeKeyAndOrderFront(nil)
             return
         }
+        // Window was closed — ask SwiftUI to recreate it
+        WindowManager.openWindow?(id: "main")
     }
 
     private func closeMainWindow() {
-        for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
+        for window in NSApp.windows where window.canBecomeMain {
             window.close()
         }
     }

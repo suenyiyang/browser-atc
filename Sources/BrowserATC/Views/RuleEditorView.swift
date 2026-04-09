@@ -106,6 +106,7 @@ struct RuleEditorView: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollIndicators(.automatic)
 
             Divider()
 
@@ -129,6 +130,6 @@ struct RuleEditorView: View {
             }
             .padding()
         }
-        .frame(width: 450, height: 380)
+        .frame(minWidth: 450, idealWidth: 450, minHeight: 280, idealHeight: 380)
     }
 }
