@@ -1,18 +1,31 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.openWindow) private var openWindow
     @Bindable var state: AppState
     @State private var showingAddSheet = false
     @State private var showingSettings = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Spacer()
+        Group {
+            if state.rules.isEmpty {
+                ContentUnavailableView(
+                    "No Rules",
+                    systemImage: "airplane.circle",
+                    description: Text("Add rules to route URLs to specific browsers and profiles.")
+                )
+            } else {
+                RuleListView(state: state)
+            }
+        }
+        .navigationTitle("Browser ATC")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
                 HStack(spacing: 8) {
                     Text("\(state.installedBrowsers.count) browsers, \(state.profiles.count) profiles")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .padding(.trailing, 4)
 
                     Button {
                         state.refreshProfiles()
@@ -35,26 +48,9 @@ struct ContentView: View {
                     }
                     .help("Add rule")
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-            }
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-
-            Group {
-                if state.rules.isEmpty {
-                    ContentUnavailableView(
-                        "No Rules",
-                        systemImage: "airplane.circle",
-                        description: Text("Add rules to route URLs to specific browsers and profiles.")
-                    )
-                } else {
-                    RuleListView(state: state)
-                }
+                .padding(.leading, 8)
             }
         }
-        .navigationTitle("Browser ATC")
         .sheet(isPresented: $showingAddSheet) {
             RuleEditorView(
                 installedBrowsers: state.installedBrowsers,
@@ -66,5 +62,8 @@ struct ContentView: View {
             SettingsView(state: state)
         }
         .frame(minWidth: 360, idealWidth: 420, minHeight: 300, idealHeight: 400)
+        .onAppear {
+            WindowManager.openWindow = openWindow
+        }
     }
 }

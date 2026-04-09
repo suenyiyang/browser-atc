@@ -10,6 +10,24 @@ struct RuleListView: View {
                 RuleRow(rule: rule, index: index, profiles: state.profiles)
                     .contentShape(Rectangle())
                     .onTapGesture { editingRule = rule }
+                    .contextMenu {
+                        Button("Edit") { editingRule = rule }
+                        Divider()
+                        Button("Delete", role: .destructive) {
+                            if let idx = state.rules.firstIndex(where: { $0.id == rule.id }) {
+                                state.deleteRules(at: IndexSet(integer: idx))
+                            }
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            if let idx = state.rules.firstIndex(where: { $0.id == rule.id }) {
+                                state.deleteRules(at: IndexSet(integer: idx))
+                            }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
             }
             .onDelete { offsets in
                 state.deleteRules(at: offsets)

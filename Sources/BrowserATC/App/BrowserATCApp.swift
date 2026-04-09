@@ -1,18 +1,23 @@
 import SwiftUI
 
+@MainActor
+enum WindowManager {
+    static var openWindow: OpenWindowAction?
+}
+
 @main
 struct BrowserATCApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("BrowserATC", systemImage: "airplane.circle") {
-            MenuBarView()
-        }
-
         Window("Browser ATC", id: "main") {
             ContentView(state: AppState.shared)
         }
         .defaultSize(width: 420, height: 400)
+
+        MenuBarExtra("BrowserATC", systemImage: "airplane.circle") {
+            MenuBarView()
+        }
     }
 }
 
