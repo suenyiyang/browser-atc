@@ -4,6 +4,7 @@ enum BrowserType: String, Codable, Sendable {
     case chromium
     case safari
     case firefox
+    case adspower
 }
 
 struct BrowserDefinition: Identifiable, Codable, Sendable, Equatable {
@@ -55,6 +56,13 @@ struct BrowserDefinition: Identifiable, Codable, Sendable, Equatable {
             bundleID: "org.mozilla.firefox",
             browserType: .firefox,
             localStatePath: "Firefox/profiles.ini"
+        ),
+        BrowserDefinition(
+            id: "adspower",
+            name: "AdsPower",
+            bundleID: "com.adspower.global",
+            browserType: .adspower,
+            localStatePath: nil
         ),
     ]
 
