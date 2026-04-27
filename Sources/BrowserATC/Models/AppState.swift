@@ -16,6 +16,7 @@ final class AppState {
     var isCheckingForUpdates: Bool = false
     var updateCheckError: String?
     var updateBannerDismissedForVersion: String?
+    let installer = UpdateInstaller.shared
 
     var isUpdateAvailable: Bool {
         guard let latest = latestRelease else { return false }

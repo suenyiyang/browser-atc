@@ -46,8 +46,8 @@ struct ContentView: View {
             if state.shouldShowUpdateBanner, let release = state.latestRelease {
                 UpdateBanner(
                     currentVersion: state.currentVersion,
-                    latestVersion: release.version,
-                    releaseURL: release.htmlURL,
+                    release: release,
+                    installer: state.installer,
                     onDismiss: { state.dismissUpdateBanner() }
                 )
             }
@@ -302,27 +302,67 @@ private enum ActiveSheet: Identifiable {
 
 private struct UpdateBanner: View {
     let currentVersion: String
-    let latestVersion: String
-    let releaseURL: URL
+    let release: LatestRelease
+    let installer: UpdateInstaller
     let onDismiss: () -> Void
+
+    private var subtitle: String {
+        switch installer.phase {
+        case .idle:
+            "You're on v\(currentVersion). Download and install in place, no Homebrew needed."
+        case .downloading(let progress):
+            String(format: "Downloading v%@\u{2026} %d%%", release.version, Int(progress * 100))
+        case .extracting:
+            "Preparing v\(release.version)\u{2026}"
+        case .readyToInstall:
+            "v\(release.version) is ready. Restart to finish the update."
+        case .installing:
+            "Installing v\(release.version)\u{2026}"
+        case .failed(let message):
+            message
+        }
+    }
+
+    private var iconName: String {
+        switch installer.phase {
+        case .failed: "exclamationmark.triangle.fill"
+        case .readyToInstall: "checkmark.circle.fill"
+        default: "arrow.down.circle.fill"
+        }
+    }
+
+    private var iconColor: Color {
+        switch installer.phase {
+        case .failed: .orange
+        case .readyToInstall: .green
+        default: .accentColor
+        }
+    }
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "arrow.down.circle.fill")
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Update available: v\(latestVersion)")
+            Image(systemName: iconName)
+                .foregroundStyle(iconColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Update available: v\(release.version)")
                     .font(.callout.weight(.semibold))
-                Text("You're on v\(currentVersion). Run `brew upgrade --cask browser-atc`, or download the new release.")
+                Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                if case .downloading(let progress) = installer.phase {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .frame(maxWidth: 220)
+                } else if case .extracting = installer.phase {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .frame(maxWidth: 220)
+                }
             }
             Spacer()
-            Button("View Release") {
-                NSWorkspace.shared.open(releaseURL)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            actionButtons
             Button {
                 onDismiss()
             } label: {
@@ -335,6 +375,55 @@ private struct UpdateBanner: View {
         .padding(.vertical, 8)
         .background(.thinMaterial)
         .overlay(Divider(), alignment: .bottom)
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        switch installer.phase {
+        case .idle:
+            if release.downloadURL != nil {
+                Button("Download & Install") {
+                    installer.start(release: release)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+            Button("Release Notes") {
+                NSWorkspace.shared.open(release.htmlURL)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
+        case .downloading, .extracting:
+            Button("Cancel") {
+                installer.reset()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
+        case .readyToInstall:
+            Button("Restart Now") {
+                installer.installAndRestart()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+
+        case .installing:
+            ProgressView()
+                .controlSize(.small)
+
+        case .failed:
+            Button("Retry") {
+                installer.start(release: release)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            Button("Release Page") {
+                NSWorkspace.shared.open(release.htmlURL)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
     }
 }
 

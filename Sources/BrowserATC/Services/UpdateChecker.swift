@@ -5,6 +5,9 @@ struct LatestRelease: Sendable {
     let htmlURL: URL
     let publishedAt: Date?
     let body: String?
+    let downloadURL: URL?
+    let downloadSize: Int64?
+    let downloadSHA256: String?
 }
 
 enum UpdateCheckError: Error, LocalizedError {
@@ -57,11 +60,18 @@ enum UpdateChecker {
             throw UpdateCheckError.invalidResponse
         }
 
+        struct AssetPayload: Decodable {
+            let name: String
+            let browser_download_url: String
+            let size: Int64?
+            let digest: String?
+        }
         struct Payload: Decodable {
             let tag_name: String
             let html_url: String
             let published_at: String?
             let body: String?
+            let assets: [AssetPayload]?
         }
 
         guard let payload = try? JSONDecoder().decode(Payload.self, from: data),
@@ -69,14 +79,27 @@ enum UpdateChecker {
             throw UpdateCheckError.decodingFailed
         }
 
+        let asset = payload.assets?.first(where: { $0.name == appBundleAssetName })
+        let downloadURL = asset.flatMap { URL(string: $0.browser_download_url) }
+        let sha256: String? = {
+            guard let digest = asset?.digest else { return nil }
+            let prefix = "sha256:"
+            return digest.hasPrefix(prefix) ? String(digest.dropFirst(prefix.count)) : nil
+        }()
+
         let formatter = ISO8601DateFormatter()
         return LatestRelease(
             version: stripLeadingV(payload.tag_name),
             htmlURL: url,
             publishedAt: payload.published_at.flatMap { formatter.date(from: $0) },
-            body: payload.body
+            body: payload.body,
+            downloadURL: downloadURL,
+            downloadSize: asset?.size,
+            downloadSHA256: sha256
         )
     }
+
+    static let appBundleAssetName = "BrowserATC.app.zip"
 
     /// Returns true when `latest` is strictly greater than `current` using semver-ish numeric comparison.
     /// Non-numeric components are treated as 0; a longer numeric prefix beats a shorter one.
