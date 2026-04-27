@@ -31,6 +31,12 @@ private struct MenuBarView: View {
         }
         .keyboardShortcut(",", modifiers: .command)
         Divider()
+        Button("Check for Updates...") {
+            NSApp.activate()
+            openWindow(id: "main")
+            AppState.shared.checkForUpdates(force: true)
+        }
+        Divider()
         Button("Quit BrowserATC") {
             NSApp.terminate(nil)
         }
