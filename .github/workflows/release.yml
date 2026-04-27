@@ -15,7 +15,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build and bundle
-        run: make bundle
+        env:
+          APP_VERSION: ${{ github.ref_name }}
+        run: |
+          export APP_VERSION="${APP_VERSION#v}"
+          make bundle
 
       - name: Zip app bundle
         run: |

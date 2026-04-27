@@ -42,18 +42,44 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            rulesTab
-                .tabItem { Label("Rules", systemImage: "list.bullet") }
-                .tag(0)
+        VStack(spacing: 0) {
+            if state.shouldShowUpdateBanner, let release = state.latestRelease {
+                UpdateBanner(
+                    currentVersion: state.currentVersion,
+                    latestVersion: release.version,
+                    releaseURL: release.htmlURL,
+                    onDismiss: { state.dismissUpdateBanner() }
+                )
+            }
+            TabView(selection: $selectedTab) {
+                rulesTab
+                    .tabItem { Label("Rules", systemImage: "list.bullet") }
+                    .tag(0)
 
-            settingsTab
-                .tabItem { Label("Browsers", systemImage: "globe") }
-                .tag(1)
+                settingsTab
+                    .tabItem { Label("Browsers", systemImage: "globe") }
+                    .tag(1)
+            }
         }
         .navigationTitle("Browser ATC")
         .toolbarBackground(.hidden, for: .windowToolbar)
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    state.checkForUpdates(force: true)
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .rotationEffect(.degrees(state.isCheckingForUpdates ? 360 : 0))
+                        .animation(
+                            state.isCheckingForUpdates
+                                ? .linear(duration: 1).repeatForever(autoreverses: false)
+                                : .default,
+                            value: state.isCheckingForUpdates
+                        )
+                }
+                .disabled(state.isCheckingForUpdates)
+                .help("Check for Updates")
+            }
             ToolbarItem(placement: .automatic) {
                 Button {
                     NSWorkspace.shared.open(URL(string: "https://github.com/suenyiyang/browser-atc/issues")!)
@@ -83,6 +109,7 @@ struct ContentView: View {
         .frame(minWidth: 360, idealWidth: 480, maxWidth: 600, minHeight: 300, idealHeight: 450)
         .onAppear {
             WindowManager.openWindow = openWindow
+            state.checkForUpdates()
         }
     }
 
@@ -270,6 +297,44 @@ private enum ActiveSheet: Identifiable {
         case .add: "add"
         case .edit(let rule): rule.id.uuidString
         }
+    }
+}
+
+private struct UpdateBanner: View {
+    let currentVersion: String
+    let latestVersion: String
+    let releaseURL: URL
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Update available: v\(latestVersion)")
+                    .font(.callout.weight(.semibold))
+                Text("You're on v\(currentVersion). Run `brew upgrade --cask browser-atc`, or download the new release.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("View Release") {
+                NSWorkspace.shared.open(releaseURL)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless)
+            .help("Dismiss")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.thinMaterial)
+        .overlay(Divider(), alignment: .bottom)
     }
 }
 

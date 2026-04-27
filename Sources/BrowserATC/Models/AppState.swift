@@ -11,6 +11,22 @@ final class AppState {
     var defaultBrowserID: String = "chrome"
     var defaultProfileDirectory: String = "Default"
 
+    let currentVersion: String = UpdateChecker.currentVersion
+    var latestRelease: LatestRelease?
+    var isCheckingForUpdates: Bool = false
+    var updateCheckError: String?
+    var updateBannerDismissedForVersion: String?
+
+    var isUpdateAvailable: Bool {
+        guard let latest = latestRelease else { return false }
+        return UpdateChecker.isNewer(latest: latest.version, than: currentVersion)
+    }
+
+    var shouldShowUpdateBanner: Bool {
+        guard isUpdateAvailable, let latest = latestRelease else { return false }
+        return updateBannerDismissedForVersion != latest.version
+    }
+
     var installedBrowsers: [BrowserDefinition] {
         BrowserDefinition.builtins.filter { BrowserDefinition.isInstalled($0) }
     }
@@ -58,5 +74,38 @@ final class AppState {
     func moveRules(from source: IndexSet, to destination: Int) {
         rules.move(fromOffsets: source, toOffset: destination)
         save()
+    }
+
+    func checkForUpdates(force: Bool = false) {
+        if !force && !UpdateChecker.shouldAutoCheck() { return }
+        if isCheckingForUpdates { return }
+        isCheckingForUpdates = true
+        updateCheckError = nil
+
+        Task { @MainActor in
+            defer { isCheckingForUpdates = false }
+            do {
+                let release = try await UpdateChecker.fetchLatest()
+                latestRelease = release
+                UpdateChecker.recordCheck()
+                if force {
+                    if UpdateChecker.isNewer(latest: release.version, than: currentVersion) {
+                        updateBannerDismissedForVersion = nil
+                    } else {
+                        ToastWindow.show(message: "You're on the latest version (v\(currentVersion)).")
+                    }
+                }
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                updateCheckError = message
+                if force {
+                    ToastWindow.show(message: "Update check failed: \(message)")
+                }
+            }
+        }
+    }
+
+    func dismissUpdateBanner() {
+        updateBannerDismissedForVersion = latestRelease?.version
     }
 }
